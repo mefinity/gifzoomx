@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GIF Zoom for Twitter",
-  "version": "1.5",
+  "version": "0.0",
   "description": "Click GIFs on Twitter to maximize and Zoom.",
   "permissions": [],
   "host_permissions": ["https://video.twimg.com/*"],
