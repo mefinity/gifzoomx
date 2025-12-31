@@ -29,12 +29,13 @@ jobs:
       - name: Package extension
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          mkdir -p dist
-          mv extension/manifest.json extension/manifest.firefox.json
-          mv extension/manifest.chrome.json extension/manifest.json
-          (cd extension && zip -r "../dist/gif-zoom-twitter-chrome-${VERSION}.zip" .)
-          mv extension/manifest.json extension/manifest.chrome.json
-          mv extension/manifest.firefox.json extension/manifest.json
+          DIST_DIR="$PWD/dist"
+          CHROME_DIR="$PWD/build/chrome"
+          mkdir -p "$DIST_DIR"
+          rm -rf "$CHROME_DIR"
+          rsync -a extension/ "$CHROME_DIR/"
+          mv "$CHROME_DIR/manifest.chrome.json" "$CHROME_DIR/manifest.json"
+          (cd "$CHROME_DIR" && zip -r "$DIST_DIR/gif-zoom-twitter-chrome-${VERSION}.zip" .)
 
       - name: Sign Firefox XPI
         env:
@@ -42,7 +43,7 @@ jobs:
           WEB_EXT_API_SECRET: ${{ secrets.AMO_API_SECRET }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          web-ext sign -s extension -a dist --channel=listed --api-key "$WEB_EXT_API_KEY" --api-secret "$WEB_EXT_API_SECRET"
+          web-ext sign -s extension -a dist --use-submission-api --channel=listed --api-key "$WEB_EXT_API_KEY" --api-secret "$WEB_EXT_API_SECRET"
           XPI_PATH="$(ls dist/*.xpi | head -n 1)"
           mv "$XPI_PATH" "dist/gif-zoom-twitter-firefox-${VERSION}.xpi"
 
