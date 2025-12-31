@@ -36,7 +36,7 @@ jobs:
           WEB_EXT_API_SECRET: ${{ secrets.AMO_API_SECRET }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          web-ext sign -s extension -a dist --channel=unlisted --api-key "$WEB_EXT_API_KEY" --api-secret "$WEB_EXT_API_SECRET"
+          web-ext sign -s extension -a dist --channel=listed --api-key "$WEB_EXT_API_KEY" --api-secret "$WEB_EXT_API_SECRET"
           XPI_PATH="$(ls dist/*.xpi | head -n 1)"
           mv "$XPI_PATH" "dist/gif-zoom-twitter-firefox-${VERSION}.xpi"
 
