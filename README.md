@@ -6,7 +6,7 @@ Browser extension for Twitter that opens GIFs in fullscreen with zoom support.
 1. Download the latest ZIP from the [releases page](https://github.com/mefinity/gifzoomx/releases).
 2. Extract the archive.
 3. Open `chrome://extensions` and enable Developer mode.
-4. Click "Load unpacked" and select the extracted `extension` folder.
+4. Click "Load unpacked" and select the extracted `gif-zoom-twitter-chrome-*` folder.
 
 ### Firefox
 1. Click the latest `.xpi` on the [releases page](https://github.com/mefinity/gifzoomx/releases).
