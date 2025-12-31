@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "GIF Zoom for X",
+  "version": "1.0",
+  "description": "Click GIFs on X to maximize and Zoom.",
+  "permissions": [],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://x.com/*",
+        "https://twitter.com/*"
+      ],
+      "js": ["gif.js", "content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["gif.worker.js"],
+      "matches": ["https://x.com/*", "https://twitter.com/*"]
+    }
+  ],
+  "icons": {
+    "16": "icon/icon16.png",
+    "48": "icon/icon48.png",
+    "128": "icon/icon128.png"
+  }
+}
