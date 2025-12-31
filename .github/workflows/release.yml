@@ -21,12 +21,24 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           VERSION="$VERSION" node -e "const fs=require('fs');const path='extension/manifest.json';const manifest=JSON.parse(fs.readFileSync(path,'utf8'));manifest.version=process.env.VERSION;fs.writeFileSync(path,JSON.stringify(manifest,null,2));"
 
+      - name: Install web-ext
+        run: npm install --global web-ext
+
       - name: Package extension
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           mkdir -p dist
           (cd extension && zip -r "../dist/gif-zoom-twitter-chrome-${VERSION}.zip" .)
-          (cd extension && zip -r "../dist/gif-zoom-twitter-firefox-${VERSION}.xpi" .)
+
+      - name: Sign Firefox XPI
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_API_KEY }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_API_SECRET }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          web-ext sign -s extension -a dist --channel=unlisted --api-key "$WEB_EXT_API_KEY" --api-secret "$WEB_EXT_API_SECRET"
+          XPI_PATH="$(ls dist/*.xpi | head -n 1)"
+          mv "$XPI_PATH" "dist/gif-zoom-twitter-firefox-${VERSION}.xpi"
 
       - uses: actions/upload-artifact@v4
         with:

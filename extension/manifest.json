@@ -20,6 +20,11 @@
       "matches": ["https://x.com/*", "https://twitter.com/*"]
     }
   ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{3989421b-3f48-41db-8746-1dbbcb5819a4}"
+    }
+  },
   "icons": {
     "16": "icon/icon16.png",
     "48": "icon/icon48.png",
