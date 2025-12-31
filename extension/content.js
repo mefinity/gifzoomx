@@ -6,12 +6,14 @@
   const SIDEBAR_BREAKPOINT = 1000;
   const SCALE_MIN = 0.5;
   const SCALE_MAX = 5;
+  const SVG_NS = 'http://www.w3.org/2000/svg';
 
   const BUTTON_STYLE = 'display: inline-flex; align-items: center; justify-content: center; width: 34.75px; height: 34.75px; border-radius: 9999px; background-color: transparent; transition: background-color 0.2s; cursor: pointer; overflow: hidden;';
   const BUTTON_ICON_STYLE = 'display: flex; align-items: center; justify-content: center; transition: color 0.2s;';
 
   const DOWNLOAD_PATH = 'M3 19h18v2H3zM13 5.828V17h-2V5.828L7.757 9.071 6.343 7.657 12 2l5.657 5.657-1.414 1.414L13 5.828z';
   const INFO_PATH = 'M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8zM11 11h2v6h-2zm0-4h2v2h-2z';
+  const CLOSE_PATH = 'M10.59 12L4.54 5.96l1.42-1.42L12 10.59l6.04-6.05 1.42 1.42L13.41 12l6.05 6.04-1.42 1.42L12 13.41l-6.04 6.05-1.42-1.42L10.59 12z';
   const GITHUB_URL = 'https://github.com/mefinity/gifzoomx';
 
   const DEFAULT_COLORS = {
@@ -428,10 +430,133 @@
     return element;
   };
 
+  const createSvgIcon = ({ path, size, fill }) => {
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.style.width = size;
+    svg.style.height = size;
+    svg.style.fill = fill || 'currentColor';
+    const group = document.createElementNS(SVG_NS, 'g');
+    const pathEl = document.createElementNS(SVG_NS, 'path');
+    pathEl.setAttribute('d', path);
+    group.appendChild(pathEl);
+    svg.appendChild(group);
+    return svg;
+  };
+
   const getRuntime = () => {
     if (typeof browser !== 'undefined' && browser.runtime) return browser.runtime;
     if (typeof chrome !== 'undefined' && chrome.runtime) return chrome.runtime;
     return null;
+  };
+
+  const sendRuntimeMessage = (runtime, message) => {
+    if (!runtime || !runtime.sendMessage) return Promise.resolve(null);
+    try {
+      const result = runtime.sendMessage(message);
+      if (result && typeof result.then === 'function') return result;
+    } catch (_) {
+    }
+    return new Promise((resolve) => {
+      try {
+        runtime.sendMessage(message, (response) => {
+          if (runtime.lastError) {
+            resolve(null);
+            return;
+          }
+          resolve(response);
+        });
+      } catch (_) {
+        resolve(null);
+      }
+    });
+  };
+
+  const fetchVideoBlobUrl = async (runtime, src) => {
+    try {
+      const response = await sendRuntimeMessage(runtime, { type: 'fetch-video', url: src });
+      if (!response || !response.ok || !response.buffer) return null;
+      const contentType = typeof response.contentType === 'string' ? response.contentType : '';
+      const blob = new Blob([response.buffer], { type: contentType || 'video/mp4' });
+      return URL.createObjectURL(blob);
+    } catch (_) {
+      return null;
+    }
+  };
+
+  const waitForVideoMetadata = (video) => new Promise((resolve, reject) => {
+    const handleLoaded = () => {
+      cleanup();
+      resolve();
+    };
+    const handleError = () => {
+      cleanup();
+      reject(new Error('Video metadata load failed'));
+    };
+    const cleanup = () => {
+      video.removeEventListener('loadedmetadata', handleLoaded);
+      video.removeEventListener('error', handleError);
+    };
+    video.addEventListener('loadedmetadata', handleLoaded, { once: true });
+    video.addEventListener('error', handleError, { once: true });
+  });
+
+  const createVideoElement = (src, useCors) => {
+    const video = document.createElement('video');
+    video.muted = true;
+    if (useCors) video.crossOrigin = 'anonymous';
+    video.src = src;
+    return video;
+  };
+
+  const renderGifFromVideo = async (video, workerUrl) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) throw new Error('Canvas context unavailable');
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const gif = new GIF({
+      workers: 2,
+      quality: 10,
+      width: canvas.width,
+      height: canvas.height,
+      workerScript: workerUrl
+    });
+
+    const fps = 10;
+    const frameInterval = 1 / fps;
+    const duration = Number.isFinite(video.duration) ? video.duration : 0;
+    const totalFrames = Math.min(Math.ceil(duration * fps), 200);
+    if (!totalFrames) throw new Error('No frames available');
+
+    for (let i = 0; i < totalFrames; i++) {
+      await new Promise((resolve, reject) => {
+        video.onseeked = resolve;
+        video.onerror = reject;
+        video.currentTime = i * frameInterval;
+      });
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      gif.addFrame(ctx, { copy: true, delay: frameInterval * 1000 });
+    }
+
+    const finished = new Promise((resolve) => {
+      gif.on('finished', (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `gif-zoom-${Date.now()}.gif`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        resolve();
+      });
+    });
+
+    gif.render();
+    await finished;
   };
 
   let cachedWorkerUrl = null;
@@ -506,7 +631,7 @@
     const iconWrapper = document.createElement('div');
     iconWrapper.style.cssText = BUTTON_ICON_STYLE;
     iconWrapper.style.color = resolvedColors.default;
-    iconWrapper.innerHTML = `<svg viewBox="0 0 24 24" style="width: 18.75px; height: 18.75px; fill: currentColor;"><g><path d="${path}"></path></g></svg>`;
+    iconWrapper.appendChild(createSvgIcon({ path, size: '18.75px' }));
     button.appendChild(iconWrapper);
 
     const setHover = (hovered) => {
@@ -619,11 +744,7 @@
 
     buildCloseButton() {
       const closeBtn = document.createElement('div');
-      closeBtn.innerHTML = `
-        <svg viewBox="0 0 24 24" style="width: 20px; height: 20px; fill: ${this.theme.closeIcon};">
-          <g><path d="M10.59 12L4.54 5.96l1.42-1.42L12 10.59l6.04-6.05 1.42 1.42L13.41 12l6.05 6.04-1.42 1.42L12 13.41l-6.04 6.05-1.42-1.42L10.59 12z"></path></g>
-        </svg>
-      `;
+      closeBtn.appendChild(createSvgIcon({ path: CLOSE_PATH, size: '20px', fill: this.theme.closeIcon }));
       setStyles(closeBtn, this.styles.closeButton);
       closeBtn.addEventListener('mouseenter', () => {
         closeBtn.style.backgroundColor = this.theme.closeHoverBackground;
@@ -709,11 +830,23 @@
       controlsContainer.appendChild(zoomDisplay);
 
       const controlsText = setStyles(document.createElement('div'), this.styles.controlsText);
-      controlsText.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><img src="https://abs-0.twimg.com/emoji/v2/svg/1f50d.svg" style="width: 20px; height: 20px; display: inline;"><strong>Scroll</strong> - Zoom in or out</div>
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><img src="https://abs-0.twimg.com/emoji/v2/svg/1f5b1.svg" style="width: 20px; height: 20px; display: inline;"><strong>Drag</strong> - Pan when zoomed</div>
-        <div style="display: flex; align-items: center; gap: 8px;"><img src="https://abs-0.twimg.com/emoji/v2/svg/32-20e3.svg" style="width: 20px; height: 20px; display: inline;"><strong>Double-click</strong> - Reset zoom</div>
-      `;
+      const buildControlRow = (iconSrc, label, description, addMargin) => {
+        const row = document.createElement('div');
+        row.style.cssText = `display: flex; align-items: center; gap: 8px;${addMargin ? ' margin-bottom: 8px;' : ''}`;
+        const img = document.createElement('img');
+        img.src = iconSrc;
+        img.alt = '';
+        img.style.cssText = 'width: 20px; height: 20px; display: inline;';
+        const strong = document.createElement('strong');
+        strong.textContent = label;
+        row.appendChild(img);
+        row.appendChild(strong);
+        row.appendChild(document.createTextNode(` - ${description}`));
+        return row;
+      };
+      controlsText.appendChild(buildControlRow('https://abs-0.twimg.com/emoji/v2/svg/1f50d.svg', 'Scroll', 'Zoom in or out', true));
+      controlsText.appendChild(buildControlRow('https://abs-0.twimg.com/emoji/v2/svg/1f5b1.svg', 'Drag', 'Pan when zoomed', true));
+      controlsText.appendChild(buildControlRow('https://abs-0.twimg.com/emoji/v2/svg/32-20e3.svg', 'Double-click', 'Reset zoom', false));
       controlsContainer.appendChild(controlsText);
 
       this.updateZoomDisplay = () => {
@@ -944,64 +1077,28 @@
       if (!this.src || typeof GIF === 'undefined') return;
       const runtime = getRuntime();
       if (!runtime || !runtime.getURL) return;
+      let blobUrl = null;
 
       try {
         const workerUrl = await getWorkerUrl(runtime);
         if (!workerUrl) return;
 
-        const video = document.createElement('video');
-        video.muted = true;
-        video.crossOrigin = 'anonymous';
-        video.src = this.src;
+        const tryRender = async (src, useCors) => {
+          const video = createVideoElement(src, useCors);
+          await waitForVideoMetadata(video);
+          await renderGifFromVideo(video, workerUrl);
+        };
 
-        await new Promise((resolve, reject) => {
-          video.onloadedmetadata = resolve;
-          video.onerror = reject;
-        });
-
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-
-        const gif = new GIF({
-          workers: 2,
-          quality: 10,
-          width: canvas.width,
-          height: canvas.height,
-          workerScript: workerUrl
-        });
-
-        const fps = 10;
-        const frameInterval = 1 / fps;
-        const duration = Number.isFinite(video.duration) ? video.duration : 0;
-        const totalFrames = Math.min(Math.ceil(duration * fps), 200);
-        if (!totalFrames) return;
-
-        for (let i = 0; i < totalFrames; i++) {
-          await new Promise((resolve) => {
-            video.onseeked = resolve;
-            video.currentTime = i * frameInterval;
-          });
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          gif.addFrame(ctx, { copy: true, delay: frameInterval * 1000 });
+        try {
+          await tryRender(this.src, true);
+        } catch (_) {
+          blobUrl = await fetchVideoBlobUrl(runtime, this.src);
+          if (!blobUrl) return;
+          await tryRender(blobUrl, false);
         }
-
-        gif.on('finished', (blob) => {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `gif-zoom-${Date.now()}.gif`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-        });
-
-        gif.render();
       } catch (_) {
+      } finally {
+        if (blobUrl) URL.revokeObjectURL(blobUrl);
       }
     }
 

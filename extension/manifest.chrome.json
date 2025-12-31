@@ -1,12 +1,12 @@
 {
-  "manifest_version": 2,
+  "manifest_version": 3,
   "name": "GIF Zoom for Twitter",
   "version": "1.0",
   "description": "Click GIFs on Twitter to maximize and Zoom.",
-  "permissions": ["https://video.twimg.com/*"],
+  "permissions": [],
+  "host_permissions": ["https://video.twimg.com/*"],
   "background": {
-    "scripts": ["background.js"],
-    "persistent": false
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
@@ -18,7 +18,12 @@
       "run_at": "document_end"
     }
   ],
-  "web_accessible_resources": ["gif.worker.js"],
+  "web_accessible_resources": [
+    {
+      "resources": ["gif.worker.js"],
+      "matches": ["https://x.com/*", "https://twitter.com/*"]
+    }
+  ],
   "browser_specific_settings": {
     "gecko": {
       "id": "{3989421b-3f48-41db-8746-1dbbcb5819a4}",

@@ -8,7 +8,7 @@ gif.js (including gif.worker.js)
 Source: https://github.com/jnordberg/gif.js
 Copyright (c) Johan Nordberg
 License: MIT
-Modifications: Comments and console logging removed for distribution.
+Modifications: Comments and console logging removed for distribution; renamed internal browser helper to avoid Firefox platform.name warning; added willReadFrequently to canvas context creation.
 
 MIT License
 
