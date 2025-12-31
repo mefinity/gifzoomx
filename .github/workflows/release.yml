@@ -31,8 +31,9 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           DIST_DIR="$PWD/dist"
           CHROME_DIR="$PWD/build/chrome"
-          mkdir -p "$DIST_DIR"
+          mkdir -p "$DIST_DIR" "$CHROME_DIR"
           rm -rf "$CHROME_DIR"
+          mkdir -p "$CHROME_DIR"
           rsync -a extension/ "$CHROME_DIR/"
           mv "$CHROME_DIR/manifest.chrome.json" "$CHROME_DIR/manifest.json"
           (cd "$CHROME_DIR" && zip -r "$DIST_DIR/gif-zoom-twitter-chrome-${VERSION}.zip" .)
