@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "GIF Zoom for X",
+  "name": "GIF Zoom for Twitter",
   "version": "1.0",
-  "description": "Click GIFs on X to maximize and Zoom.",
+  "description": "Click GIFs on Twitter to maximize and Zoom.",
   "permissions": [],
   "content_scripts": [
     {

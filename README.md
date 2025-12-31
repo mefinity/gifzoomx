@@ -1,4 +1,4 @@
-# GIF Zoom for X
+# GIF Zoom for Twitter
 
 Browser extension for Twitter that opens GIFs in fullscreen with zoom support.
 
@@ -14,7 +14,7 @@ Browser extension for Twitter that opens GIFs in fullscreen with zoom support.
 3. Select `extension/manifest.json`.
 
 ## Usage
-- Click a GIF on X.
+- Click a GIF on Twitter.
 - Scroll to zoom.
 - Drag to pan when zoomed.
 - Double-click to reset zoom.
